@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["jsonProtocol"]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model User {
+  id                  String          @id @default(cuid())
+  name                String?
+  email               String?         @unique
+  emailVerified       DateTime?
+  image               String?
+  accounts            Account[]
+  sessions            Session[]
+  Subscription        Subscription?
+  Payment             Payment[]
+  razorpayCustomerId  String?         @unique // To store Razorpay customer ID
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Model for Razorpay Subscriptions
+model Subscription {
+  id                  String    @id @default(cuid()) // Our internal ID
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  razorpaySubscriptionId String @unique // Razorpay's subscription ID
+  razorpayPlanId      String    // Razorpay's plan ID
+  status              String    // e.g., "active", "pending", "halted", "cancelled", "completed"
+  currentPeriodEnd    DateTime? // When the current subscription period ends
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([razorpaySubscriptionId])
+}
+
+// Model for individual payment transactions (both one-time and subscription renewals)
+model Payment {
+  id                String    @id @default(cuid()) // Our internal ID
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  razorpayPaymentId String    @unique // Razorpay's payment ID
+  razorpayOrderId   String?   @unique // Razorpay's order ID (for one-time payments)
+  razorpaySignature String?   // For verifying webhook or payment completion
+  amount            Float     // Amount in the smallest currency unit (e.g., paise for INR)
+  currency          String    // e.g., "INR"
+  status            String    // e.g., "created", "authorized", "captured", "failed", "refunded"
+  method            String?   // Payment method used (card, upi, etc.)
+  isSubscriptionPayment Boolean @default(false) // True if this payment is part of a subscription
+  subscriptionId    String?   // Optional: Link to our Subscription model if it's a subscription payment
+  notes             Json?     // Any additional notes or metadata from Razorpay
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([razorpayPaymentId])
+  @@index([razorpayOrderId])
+}
