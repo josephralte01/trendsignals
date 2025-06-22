@@ -7,9 +7,18 @@
     "lib": "lib"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "prisma generate",
+    "setup:plans": "node lib/razorpay-plan-setup.js"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.10.1",
+    "razorpay": "^2.9.6"
+  },
+  "devDependencies": {
+    "prisma": "^6.10.1"
+  }
 }
